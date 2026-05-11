@@ -21,6 +21,14 @@ RewriteRule ^dam(?:/(.*))?$ dam/index.php [QSA,L]
 # short-circuit below because the document root itself is a directory.
 RewriteRule ^$ frontend/dist/index.html [L]
 
+# Serve frontend build assets from frontend/dist at the site root.
+RewriteRule ^assets/(.+)$ frontend/dist/assets/$1 [L]
+RewriteRule ^favicon\.svg$ frontend/dist/favicon.svg [L]
+RewriteRule ^manifest\.webmanifest$ frontend/dist/manifest.webmanifest [L]
+RewriteRule ^pwa-(192|512)\.svg$ frontend/dist/pwa-$1.svg [L]
+RewriteRule ^sw\.js$ frontend/dist/sw.js [L]
+RewriteRule ^workbox-.+\.js$ frontend/dist/$0 [L]
+
 # Let actual project-root files resolve if they are explicitly public.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
