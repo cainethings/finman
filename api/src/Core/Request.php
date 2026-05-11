@@ -21,10 +21,19 @@ final class Request
         $headers = function_exists('getallheaders') ? getallheaders() : [];
         $rawBody = file_get_contents('php://input') ?: '';
         $decoded = json_decode($rawBody, true);
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
+        // Apache routes public API traffic through /api, but the app router
+        // is registered without that prefix.
+        if (str_starts_with($path, '/api/')) {
+            $path = substr($path, 4);
+        } elseif ($path === '/api') {
+            $path = '/';
+        }
 
         return new self(
             strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET'),
-            parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/',
+            $path,
             $_GET,
             is_array($decoded) ? $decoded : $_POST,
             $_FILES,
