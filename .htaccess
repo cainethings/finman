@@ -1,0 +1,34 @@
+Options -Indexes
+RewriteEngine On
+
+# Keep project internals out of the public web surface.
+RewriteRule (^|/)\. - [F]
+RewriteRule ^(config|docs|deployment|ai-gaurdrails)(/|$) - [F]
+RewriteRule ^(api|dam)/.*\.(env|example|md|json|log|sql)$ - [F]
+RewriteRule ^setup\.md$ - [F]
+
+# Public API: https://finmaster.cainethings.com/api/...
+RewriteRule ^api(?:/(.*))?$ api/public/index.php [QSA,L]
+
+# Public DAM asset streaming and management routes:
+#   https://example.com/dam/{asset-id}
+#   https://example.com/dam/assets
+#   https://example.com/dam/health
+RewriteRule ^dam/([0-9]+)$ dam/index.php [QSA,L]
+RewriteRule ^dam(?:/(.*))?$ dam/index.php [QSA,L]
+
+# Base domain serves the React build. Keep this before the directory
+# short-circuit below because the document root itself is a directory.
+RewriteRule ^$ frontend/dist/index.html [L]
+
+# Let actual project-root files resolve if they are explicitly public.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Serve frontend build files from frontend/dist at the site root.
+RewriteCond frontend/dist/$1 -f
+RewriteRule ^(.+)$ frontend/dist/$1 [L]
+
+# Frontend deep links serve the React build.
+RewriteRule ^.*$ frontend/dist/index.html [L]
