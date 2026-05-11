@@ -10,7 +10,10 @@ use RuntimeException;
 
 final class AuthService
 {
-    public function __construct(private readonly Database $database)
+    public function __construct(
+        private readonly Database $database,
+        private readonly MailerService $mailer
+    )
     {
     }
 
@@ -42,12 +45,13 @@ final class AuthService
             ->execute([$userId]);
         $pdo->prepare('INSERT INTO otp_codes (user_id, code_hash, expires_at, created_at) VALUES (?, ?, ?, NOW())')
             ->execute([$userId, $otpHash, $expiresAt]);
+        $this->mailer->sendOtp($email, $otp, $expiresAt);
 
         $response = ['message' => 'OTP sent to email'];
         if ($this->debugEnabled()) {
             $response['debug_notes'] = [
-                'mail_transport_implemented' => false,
-                'mail_status' => 'OTP is saved in the database, but SMTP sending is not implemented in this codebase yet.',
+                'mail_transport_implemented' => true,
+                'mail_status' => 'OTP email was handed to the configured SMTP transport.',
                 'otp_saved_for_user_id' => $userId,
                 'otp_expires_at' => $expiresAt,
                 'mail_config' => [

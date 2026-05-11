@@ -12,6 +12,7 @@ use App\Core\Response;
 use App\Core\Router;
 use App\Repositories\FinancialRepository;
 use App\Services\AuthService;
+use App\Services\MailerService;
 use App\Services\OpenAIService;
 use App\Services\StatementService;
 
@@ -58,7 +59,8 @@ try {
 
     $db = Database::fromEnv();
     $repository = new FinancialRepository($db);
-    $authService = new AuthService($db);
+    $mailerService = new MailerService();
+    $authService = new AuthService($db, $mailerService);
     $openAiService = new OpenAIService($repository);
     $statementService = new StatementService($db, $repository, $openAiService);
 
