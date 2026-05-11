@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Area, AreaChart, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import clsx from 'clsx';
@@ -82,7 +82,13 @@ function AuthPage() {
   const [step, setStep] = useState<'request' | 'verify'>('request');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
+  const navigate = useNavigate();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const setSession = useAuthStore((state) => state.setSession);
+
+  if (accessToken) {
+    return <Navigate to="/" replace />;
+  }
 
   const requestOtp = useMutation({
     mutationFn: () =>
@@ -99,7 +105,10 @@ function AuthPage() {
         method: 'POST',
         body: JSON.stringify({ email, otp })
       }),
-    onSuccess: ({ access_token, user }) => setSession(user, access_token)
+    onSuccess: ({ access_token, user }) => {
+      setSession(user, access_token);
+      navigate('/', { replace: true });
+    }
   });
 
   return (
