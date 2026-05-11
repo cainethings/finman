@@ -1,6 +1,6 @@
 import { useAuthStore } from '../store/auth';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+const API_BASE = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '');
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().accessToken;
