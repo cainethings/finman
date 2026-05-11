@@ -16,7 +16,7 @@ final class OpenAIService
     {
         $context = $this->repository->financialContext($userId);
         $fallback = $this->fallbackInsights($context);
-        $apiKey = $_ENV['OPENAI_API_KEY'] ?? null;
+        $apiKey = $this->resolveApiKey();
 
         if (!$apiKey || !function_exists('curl_init')) {
             return $fallback;
@@ -54,7 +54,7 @@ final class OpenAIService
     public function chat(int $userId, array $messages): string
     {
         $context = $this->repository->financialContext($userId);
-        $apiKey = $_ENV['OPENAI_API_KEY'] ?? null;
+        $apiKey = $this->resolveApiKey();
         if (!$apiKey || !function_exists('curl_init')) {
             return $this->fallbackChat($context, $messages);
         }
@@ -115,6 +115,14 @@ final class OpenAIService
 
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function resolveApiKey(): ?string
+    {
+        return $_ENV['CAINETHINGE_OPENAI_API_KEY']
+            ?? $_ENV['CAINETHINGE_KEY']
+            ?? $_ENV['OPENAI_API_KEY']
+            ?? null;
     }
 
     private function fallbackInsights(array $context): array

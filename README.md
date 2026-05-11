@@ -26,6 +26,16 @@ FinMan Pro is a mobile-first personal money manager PWA with a `React + TypeScri
 php -S localhost:8080 -t api/public
 ```
 
+## Key configuration
+
+The backend now resolves the OpenAI key in this order:
+
+1. `CAINETHINGE_OPENAI_API_KEY`
+2. `CAINETHINGE_KEY`
+3. `OPENAI_API_KEY`
+
+If you want this repo to explicitly use your cainethinge key, set `CAINETHINGE_OPENAI_API_KEY` in `api/.env`.
+
 ## OpenAI behavior
 
 - `POST /ai/insights/generate` creates insight cards
