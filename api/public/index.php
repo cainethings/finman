@@ -40,50 +40,79 @@ if (is_file($envFile)) {
     }
 }
 
-$request = Request::capture();
-$db = Database::fromEnv();
-$repository = new FinancialRepository($db);
-$authService = new AuthService($db);
-$openAiService = new OpenAIService($repository);
-$statementService = new StatementService($db, $repository, $openAiService);
+function envFlag(string $key, bool $default = false): bool
+{
+    $value = $_ENV[$key] ?? null;
+    if ($value === null) {
+        return $default;
+    }
 
-$authController = new AuthController($authService);
-$financeController = new FinanceController($repository);
-$statementController = new StatementController($statementService, $repository);
-$aiController = new AiController($repository, $openAiService);
-
-$router = new Router();
-$router->get('/health', static fn() => Response::json(['status' => 'ok']));
-$router->post('/auth/request-otp', [$authController, 'requestOtp']);
-$router->post('/auth/verify-otp', [$authController, 'verifyOtp']);
-$router->post('/auth/refresh', [$authController, 'refresh']);
-$router->post('/auth/logout', [$authController, 'logout']);
-
-$router->get('/dashboard', fn(Request $request) => $financeController->dashboard($request, $authService));
-$router->get('/transactions', fn(Request $request) => $financeController->transactions($request, $authService));
-$router->post('/transactions', fn(Request $request) => $financeController->storeTransaction($request, $authService));
-$router->put('/transactions/{id}', fn(Request $request, array $params) => $financeController->updateTransaction($request, $params, $authService));
-$router->delete('/transactions/{id}', fn(Request $request, array $params) => $financeController->deleteTransaction($request, $params, $authService));
-$router->get('/budgets', fn(Request $request) => $financeController->budgets($request, $authService));
-$router->get('/goals', fn(Request $request) => $financeController->goals($request, $authService));
-$router->get('/recurring-payments', fn(Request $request) => $financeController->recurring($request, $authService));
-
-$router->get('/statements', fn(Request $request) => $statementController->index($request, $authService));
-$router->post('/statements/upload', fn(Request $request) => $statementController->upload($request, $authService));
-$router->get('/statements/{id}/rows', fn(Request $request, array $params) => $statementController->rows($request, $params, $authService));
-$router->post('/statements/{id}/confirm', fn(Request $request, array $params) => $statementController->confirm($request, $params, $authService));
-$router->post('/statements/{id}/analyze', fn(Request $request, array $params) => $statementController->analyze($request, $params, $authService));
-
-$router->post('/ai/insights/generate', fn(Request $request) => $aiController->generateInsights($request, $authService));
-$router->get('/ai/insights/latest', fn(Request $request) => $aiController->latestInsights($request, $authService));
-$router->get('/ai/chat/threads', fn(Request $request) => $aiController->threadMessages($request, $authService));
-$router->post('/ai/chat/message', fn(Request $request) => $aiController->message($request, $authService));
+    return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+}
 
 try {
+    $request = Request::capture();
+    if ($request->path === '/health') {
+        Response::json(['status' => 'ok']);
+    }
+
+    $db = Database::fromEnv();
+    $repository = new FinancialRepository($db);
+    $authService = new AuthService($db);
+    $openAiService = new OpenAIService($repository);
+    $statementService = new StatementService($db, $repository, $openAiService);
+
+    $authController = new AuthController($authService);
+    $financeController = new FinanceController($repository);
+    $statementController = new StatementController($statementService, $repository);
+    $aiController = new AiController($repository, $openAiService);
+
+    $router = new Router();
+    $router->get('/health', static fn() => Response::json(['status' => 'ok']));
+    $router->post('/auth/request-otp', [$authController, 'requestOtp']);
+    $router->post('/auth/verify-otp', [$authController, 'verifyOtp']);
+    $router->post('/auth/refresh', [$authController, 'refresh']);
+    $router->post('/auth/logout', [$authController, 'logout']);
+
+    $router->get('/dashboard', fn(Request $request) => $financeController->dashboard($request, $authService));
+    $router->get('/transactions', fn(Request $request) => $financeController->transactions($request, $authService));
+    $router->post('/transactions', fn(Request $request) => $financeController->storeTransaction($request, $authService));
+    $router->put('/transactions/{id}', fn(Request $request, array $params) => $financeController->updateTransaction($request, $params, $authService));
+    $router->delete('/transactions/{id}', fn(Request $request, array $params) => $financeController->deleteTransaction($request, $params, $authService));
+    $router->get('/budgets', fn(Request $request) => $financeController->budgets($request, $authService));
+    $router->get('/goals', fn(Request $request) => $financeController->goals($request, $authService));
+    $router->get('/recurring-payments', fn(Request $request) => $financeController->recurring($request, $authService));
+
+    $router->get('/statements', fn(Request $request) => $statementController->index($request, $authService));
+    $router->post('/statements/upload', fn(Request $request) => $statementController->upload($request, $authService));
+    $router->get('/statements/{id}/rows', fn(Request $request, array $params) => $statementController->rows($request, $params, $authService));
+    $router->post('/statements/{id}/confirm', fn(Request $request, array $params) => $statementController->confirm($request, $params, $authService));
+    $router->post('/statements/{id}/analyze', fn(Request $request, array $params) => $statementController->analyze($request, $params, $authService));
+
+    $router->post('/ai/insights/generate', fn(Request $request) => $aiController->generateInsights($request, $authService));
+    $router->get('/ai/insights/latest', fn(Request $request) => $aiController->latestInsights($request, $authService));
+    $router->get('/ai/chat/threads', fn(Request $request) => $aiController->threadMessages($request, $authService));
+    $router->post('/ai/chat/message', fn(Request $request) => $aiController->message($request, $authService));
+
     $router->dispatch($request);
 } catch (Throwable $exception) {
+    error_log((string) $exception);
+    $debug = envFlag('APP_DEBUG');
+    $status = $exception->getCode() >= 400 ? $exception->getCode() : 500;
+    $payload = ['message' => 'Server error'];
+
+    if ($debug) {
+        $payload = [
+            'message' => $exception->getMessage(),
+            'type' => $exception::class,
+            'path' => isset($request) ? $request->path : null,
+            'file' => basename($exception->getFile()),
+            'line' => $exception->getLine(),
+        ];
+    }
+
     Response::json(
-        ['message' => $exception->getMessage()],
-        $exception->getCode() >= 400 ? $exception->getCode() : 500
+        $payload,
+        $status
     );
 }
