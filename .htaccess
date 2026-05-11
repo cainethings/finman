@@ -7,6 +7,10 @@ RewriteRule ^(config|docs|deployment|ai-gaurdrails)(/|$) - [F]
 RewriteRule ^(api|dam)/.*\.(env|example|md|json|log|sql)$ - [F]
 RewriteRule ^setup\.md$ - [F]
 
+# Prevent internal rewrites from re-entering the API/DAM front controllers.
+RewriteRule ^api/public/index\.php$ - [L]
+RewriteRule ^dam/index\.php$ - [L]
+
 # Public API: https://finmaster.cainethings.com/api/...
 RewriteRule ^api(?:/(.*))?$ api/public/index.php [QSA,L]
 
