@@ -44,6 +44,24 @@ final class AuthService
             ->execute([$userId, $otpHash, $expiresAt]);
 
         $response = ['message' => 'OTP sent to email'];
+        if ($this->debugEnabled()) {
+            $response['debug_notes'] = [
+                'mail_transport_implemented' => false,
+                'mail_status' => 'OTP is saved in the database, but SMTP sending is not implemented in this codebase yet.',
+                'otp_saved_for_user_id' => $userId,
+                'otp_expires_at' => $expiresAt,
+                'mail_config' => [
+                    'driver' => $_ENV['MAIL_DRIVER'] ?? null,
+                    'from_address' => $_ENV['MAIL_FROM_ADDRESS'] ?? null,
+                    'reply_to' => $_ENV['MAIL_REPLY_TO'] ?? null,
+                    'smtp_host' => $_ENV['SMTP_HOST'] ?? null,
+                    'smtp_port' => $_ENV['SMTP_PORT'] ?? null,
+                    'smtp_encryption' => $_ENV['SMTP_ENCRYPTION'] ?? null,
+                    'smtp_username' => $_ENV['SMTP_USERNAME'] ?? null,
+                    'smtp_password_configured' => !empty($_ENV['SMTP_PASSWORD']),
+                ],
+            ];
+        }
         if (($_ENV['APP_ENV'] ?? 'local') !== 'production') {
             $response['otp_preview'] = $otp;
         }
@@ -125,5 +143,15 @@ final class AuthService
         $payload = sprintf('%d.%d', $userId, $expires);
         $secret = $_ENV['APP_KEY'] ?? 'finman-dev-secret';
         return $payload . '.' . hash_hmac('sha256', $payload, $secret);
+    }
+
+    private function debugEnabled(): bool
+    {
+        $value = $_ENV['APP_DEBUG'] ?? null;
+        if ($value === null) {
+            return false;
+        }
+
+        return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
     }
 }
