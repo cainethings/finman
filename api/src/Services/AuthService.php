@@ -54,6 +54,7 @@ final class AuthService
                 'mail_status' => 'OTP email was handed to the configured SMTP transport.',
                 'otp_saved_for_user_id' => $userId,
                 'otp_expires_at' => $expiresAt,
+                'otp_preview' => $otp,
                 'mail_config' => [
                     'driver' => $_ENV['MAIL_DRIVER'] ?? null,
                     'from_address' => $_ENV['MAIL_FROM_ADDRESS'] ?? null,
@@ -75,6 +76,9 @@ final class AuthService
 
     public function verifyOtp(string $email, string $otp): array
     {
+        $email = strtolower(trim($email));
+        $otp = $this->normalizeOtp($otp);
+
         $pdo = $this->database->pdo();
         $query = $pdo->prepare(
             'SELECT u.id, u.name, u.email, o.id AS otp_id, o.code_hash, o.expires_at
@@ -84,11 +88,21 @@ final class AuthService
              ORDER BY o.id DESC
              LIMIT 1'
         );
-        $query->execute([strtolower(trim($email))]);
+        $query->execute([$email]);
         $row = $query->fetch();
 
-        if (!$row || !password_verify($otp, $row['code_hash'])) {
-            throw new RuntimeException('Invalid OTP.', 401);
+        if (!$row) {
+            throw new RuntimeException(
+                $this->debugEnabled() ? 'No active OTP found for this email. Request a new OTP first.' : 'Invalid OTP.',
+                401
+            );
+        }
+
+        if (!password_verify($otp, $row['code_hash'])) {
+            throw new RuntimeException(
+                $this->debugEnabled() ? 'Submitted OTP does not match the latest active OTP for this email.' : 'Invalid OTP.',
+                401
+            );
         }
 
         if (strtotime($row['expires_at']) < time()) {
@@ -157,5 +171,10 @@ final class AuthService
         }
 
         return in_array(strtolower(trim((string) $value)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function normalizeOtp(string $otp): string
+    {
+        return preg_replace('/\D+/', '', trim($otp)) ?? '';
     }
 }
